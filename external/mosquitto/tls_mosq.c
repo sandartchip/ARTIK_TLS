@@ -56,11 +56,17 @@ extern int tls_ex_index_mosq;
 
 int _mosquitto_server_certificate_verify(int preverify_ok, X509_STORE_CTX *ctx)
 {
+
 	/* Preverify should have already checked expiry, revocation.
 	 * We need to verify the hostname. */
+
 	struct mosquitto *mosq;
 	SSL *ssl;
 	X509 *cert;
+
+	printf("Preverify should have already checked expiry, revocation (not checked) MOSQUITTO SERVER CERT VERIFY\n");
+	fflush(stdout);
+
 
 	/* Always reject if preverify_ok has failed. */
 	if (!preverify_ok) {
@@ -77,6 +83,7 @@ int _mosquitto_server_certificate_verify(int preverify_ok, X509_STORE_CTX *ctx)
 		if (X509_STORE_CTX_get_error_depth(ctx) == 0) {
 			/* FIXME - use X509_check_host() etc. for sufficiently new openssl (>=1.1.x) */
 			cert = X509_STORE_CTX_get_current_cert(ctx);
+
 			/* This is the peer certificate, all others are upwards in the chain. */
 #if defined(WITH_BROKER)
 			return _mosquitto_verify_certificate_hostname(cert, mosq->bridge->addresses[mosq->bridge->cur_address].address);
@@ -87,6 +94,8 @@ int _mosquitto_server_certificate_verify(int preverify_ok, X509_STORE_CTX *ctx)
 			return preverify_ok;
 		}
 	} else {
+		printf("preverify OK\n");
+		fflush(stdout);
 		return preverify_ok;
 	}
 }
@@ -123,6 +132,7 @@ int mosquitto__cmp_hostname_wildcard(char *certname, const char *hostname)
  */
 int _mosquitto_verify_certificate_hostname(X509 *cert, const char *hostname)
 {
+
 	int i;
 	char name[256];
 	X509_NAME *subj;
@@ -134,6 +144,9 @@ int _mosquitto_verify_certificate_hostname(X509 *cert, const char *hostname)
 	unsigned char ipv4_addr[4];
 	int ipv6_ok;
 	int ipv4_ok;
+
+	printf("mosquitto verify certificate host name\n");
+	fflush(stdout);
 
 #ifdef WIN32
 	ipv6_ok = InetPton(AF_INET6, hostname, &ipv6_addr);

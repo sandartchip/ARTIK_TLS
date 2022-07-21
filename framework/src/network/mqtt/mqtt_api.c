@@ -353,17 +353,20 @@ int mqtt_connect(mqtt_client_t *handle, char *addr, int port, int keep_alive)
 
 	if (handle == NULL) {
 		ndbg("ERROR: mqtt_client handle is null.\n");
+		printf("ERROR: mqtt_client handle is null.\n");
 		goto done;
 	}
 
 	mosq = (struct mosquitto *)handle->mosq;
 	if (mosq == NULL) {
 		ndbg("ERROR: mosquitto handle is null.\n");
+		printf("ERROR: mqtt_client handle is null.\n");
 		goto done;
 	}
 
 	if (handle->state == MQTT_CLIENT_STATE_CONNECTED) {
 		ndbg("ERROR: mqtt_client is already connected.\n");
+		printf("ERROR: mqtt_client is already connected.\n");
 		result = 0;
 		goto done;
 	}
@@ -372,17 +375,20 @@ int mqtt_connect(mqtt_client_t *handle, char *addr, int port, int keep_alive)
 		char state_str[20];
 		get_mqtt_client_state_string(handle->state, state_str);
 		ndbg("ERROR: mqtt_client is busy.(current state: %s)\n", state_str);
+		printf("ERROR: mqtt_client is busy.(current state: %s)\n", state_str);
 		goto done;
 	}
 
 	mqtt_config = handle->config;
 	if (mqtt_config == NULL) {
 		ndbg("ERROR: mqtt_config is null.\n");
+		printf("ERROR: mqtt_config is null.\n");
 		goto done;
 	}
 
 	if (addr == NULL) {
 		ndbg("ERROR: addr is null.\n");
+		printf("ERROR: addr is null.\n");
 		goto done;
 	}
 
@@ -403,6 +409,7 @@ int mqtt_connect(mqtt_client_t *handle, char *addr, int port, int keep_alive)
 		ret = mosquitto_loop_start(mosq);
 		if (ret != 0) {
 			ndbg("ERROR: mosquitto_loop_start() failed. (ret: %d)\n", ret);
+			printf("ERROR: mosquitto_loop_start() failed. (ret: %d)\n", ret);
 			ret = mosquitto_disconnect(mosq);
 			if (ret != 0) {
 				ndbg("ERROR: mosquitto_disconnect() failed. (ret: %d)\n", ret);

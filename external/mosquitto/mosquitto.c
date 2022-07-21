@@ -246,6 +246,8 @@ int mosquitto_reinitialise(struct mosquitto *mosq, const char *id, bool clean_se
 	mosq->tls_hostname = NULL;
 	mosq->want_write = false;
 	mosq->tls_insecure = false;
+	printf("mosq->tls->cert_reqs = MBEDTLS_SSL_VERIFY_REQUIRED\n");
+	fflush(stdout);
 #endif
 #ifdef WITH_THREADING
 	pthread_mutex_init(&mosq->callback_mutex, NULL);
@@ -381,6 +383,7 @@ void _mosquitto_destroy(struct mosquitto *mosq)
 	_mosquitto_message_cleanup_all(mosq);
 	_mosquitto_will_clear(mosq);
 #ifdef WITH_TLS
+//#ifdef WITH_MBEDTLS
 	if (mosq->ssl) {
 		SSL_free(mosq->ssl);
 	}
@@ -532,44 +535,62 @@ int mosquitto_socket(struct mosquitto *mosq)
 
 static int _mosquitto_connect_init(struct mosquitto *mosq, const char *host, int port, int keepalive, const char *bind_address)
 {
+	printf("mosquitto connect init\n");
+	fflush(stdout);
+
 	if (!mosq) {
-		return MOSQ_ERR_INVAL;
+		printf("mosquitto NO MOSQ FOUND\n");
+		fflush(stdout);
+		return MOSQ_ERR_INVAL;	
 	}
 	if (!host || port <= 0) {
+		printf("host and port err");
+		fflush(stdout);
 		return MOSQ_ERR_INVAL;
 	}
 
 	if (mosq->host) {
+		printf("freehost\n");
+		fflush(stdout);
 		_mosquitto_free(mosq->host);
 	}
 	mosq->host = _mosquitto_strdup(host);
 	if (!mosq->host) {
+		printf("no host\n");
+		fflush(stdout);
 		return MOSQ_ERR_NOMEM;
 	}
 	mosq->port = port;
 
 	if (mosq->bind_address) {
+		printf("bind free\n");
+		fflush(stdout);
 		_mosquitto_free(mosq->bind_address);
 	}
 	if (bind_address) {
 		mosq->bind_address = _mosquitto_strdup(bind_address);
 		if (!mosq->bind_address) {
+			printf("no bind address\n");
 			return MOSQ_ERR_NOMEM;
 		}
 	}
 
 	mosq->keepalive = keepalive;
+	printf("keep alive %d\n", mosq->keepalive);
 
 	if (mosq->sockpairR != INVALID_SOCKET) {
+		printf("not Invalid SOCKET R\n");
 		COMPAT_CLOSE(mosq->sockpairR);
 		mosq->sockpairR = INVALID_SOCKET;
 	}
 	if (mosq->sockpairW != INVALID_SOCKET) {
+		printf("not Invalid SOCKET W\n");
 		COMPAT_CLOSE(mosq->sockpairW);
 		mosq->sockpairW = INVALID_SOCKET;
 	}
 
 	if (_mosquitto_socketpair(&mosq->sockpairR, &mosq->sockpairW)) {
+		
 		_mosquitto_log_printf(mosq, MOSQ_LOG_WARNING, "Warning: Unable to open socket pair, outgoing publish commands may be delayed.");
 	}
 
@@ -578,21 +599,24 @@ static int _mosquitto_connect_init(struct mosquitto *mosq, const char *host, int
 
 int mosquitto_connect(struct mosquitto *mosq, const char *host, int port, int keepalive)
 {
+	printf("mosquitto connct\n");
 	return mosquitto_connect_bind(mosq, host, port, keepalive, NULL);
 }
 
 int mosquitto_connect_bind(struct mosquitto *mosq, const char *host, int port, int keepalive, const char *bind_address)
 {
 	int rc;
+	printf("mosquitto connct bind\n");
 	rc = _mosquitto_connect_init(mosq, host, port, keepalive, bind_address);
 	if (rc) {
 		return rc;
 	}
-
+	printf("mosquitto mutex lock\n");
 	pthread_mutex_lock(&mosq->state_mutex);
 	mosq->state = mosq_cs_new;
 	pthread_mutex_unlock(&mosq->state_mutex);
-
+	printf("mosquitto mutex lock ok\n");
+	printf("start to mosquitto re connect\n");
 	return _mosquitto_reconnect(mosq, true);
 }
 
@@ -611,7 +635,6 @@ int mosquitto_connect_bind_async(struct mosquitto *mosq, const char *host, int p
 	pthread_mutex_lock(&mosq->state_mutex);
 	mosq->state = mosq_cs_connect_async;
 	pthread_mutex_unlock(&mosq->state_mutex);
-
 	return _mosquitto_reconnect(mosq, false);
 }
 
@@ -622,17 +645,21 @@ int mosquitto_reconnect_async(struct mosquitto *mosq)
 
 int mosquitto_reconnect(struct mosquitto *mosq)
 {
+	printf("--mosquitto reconnect\n");
 	return _mosquitto_reconnect(mosq, true);
 }
 
 static int _mosquitto_reconnect(struct mosquitto *mosq, bool blocking)
 {
+	printf("__mosquitto reconnect __\n");
 	int rc;
 	struct _mosquitto_packet *packet;
 	if (!mosq) {
+		printf("mosquitto reconnect NO MOSQ");
 		return MOSQ_ERR_INVAL;
 	}
 	if (!mosq->host || mosq->port <= 0) {
+		printf("mosq host..%s   mosq port..%d\n", mosq->host, mosq->port);
 		return MOSQ_ERR_INVAL;
 	}
 
@@ -655,48 +682,62 @@ static int _mosquitto_reconnect(struct mosquitto *mosq, bool blocking)
 	mosq->ping_t = 0;
 
 	_mosquitto_packet_cleanup(&mosq->in_packet);
+	printf("a\n");
 
 	pthread_mutex_lock(&mosq->current_out_packet_mutex);
 	pthread_mutex_lock(&mosq->out_packet_mutex);
 
+	printf("b\n");
+
 	if (mosq->out_packet && !mosq->current_out_packet) {
 		mosq->current_out_packet = mosq->out_packet;
-		mosq->out_packet = mosq->out_packet->next;
+		mosq->out_packet = mosq->out_packet->next;		
 	}
+	printf("c\n");
 
 	while (mosq->current_out_packet) {
 		packet = mosq->current_out_packet;
+		printf("d\n");
+
 		/* Free data and reset values */
 		mosq->current_out_packet = mosq->out_packet;
 		if (mosq->out_packet) {
+			printf("e\n");
 			mosq->out_packet = mosq->out_packet->next;
 		}
-
+		printf("f\n");
 		_mosquitto_packet_cleanup(packet);
 		_mosquitto_free(packet);
 	}
+	printf("g\n");
 	pthread_mutex_unlock(&mosq->out_packet_mutex);
 	pthread_mutex_unlock(&mosq->current_out_packet_mutex);
 
+	printf("h\n");
 	_mosquitto_messages_reconnect_reset(mosq);
 
 #ifdef WITH_SOCKS
 	if (mosq->socks5_host) {
+		printf("i\n");
 		rc = _mosquitto_socket_connect(mosq, mosq->socks5_host, mosq->socks5_port, mosq->bind_address, blocking);
 	} else
 #endif
 	{
+		printf("j\n");
 		rc = _mosquitto_socket_connect(mosq, mosq->host, mosq->port, mosq->bind_address, blocking);
 	}
 	if (rc > 0) {
+		printf("k\n");
 		return rc;
 	}
 #ifdef WITH_SOCKS
 	if (mosq->socks5_host) {
+		printf("l\n");
 		return mosquitto__socks5_send(mosq);
 	} else
 #endif
 	{
+		printf("m\n");
 		return _mosquitto_send_connect(mosq, mosq->keepalive, mosq->clean_session);
 	}
 }
@@ -826,7 +867,12 @@ int mosquitto_unsubscribe(struct mosquitto *mosq, int *mid, const char *sub)
 
 int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *capath, const char *certfile, const char *keyfile, int (*pw_callback)(char *buf, int size, int rwflag, void *userdata))
 {
+	printf("---------mosquittooo tls set-----------\n");
+	fflush(stdout);
 #ifdef WITH_TLS
+//#ifdef WITH_MBEDTLS
+	printf("mosquittooo with tls set\n");
+	fflush(stdout);
 	FILE *fptr;
 
 	if (!mosq || (!cafile && !capath) || (certfile && !keyfile) || (!certfile && keyfile)) {
@@ -921,6 +967,7 @@ int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *ca
 	return MOSQ_ERR_SUCCESS;
 #else
 #ifdef WITH_MBEDTLS
+	printf("with mbedtls\n");
 	if (!mosq || !cafile) {
 		return MOSQ_ERR_INVAL;
 	}
@@ -938,7 +985,7 @@ int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *ca
 	if (!mosq->cert || !mosq->pkey || !mosq->entropy || !mosq->ctr_drbg || !mosq->cache) {
 		return MOSQ_ERR_NOMEM;
 	}
-
+	printf("0. Initialize tls sub params \n");
 	/* 0. Initialize tls sub params */
 	mbedtls_x509_crt_init(mosq->cert);
 	mbedtls_pk_init(mosq->pkey);
@@ -948,6 +995,9 @@ int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *ca
 
 	/* 1. Load the certificates and private RSA key */
 	if (mosq->tls_cert) {
+		printf("mosq tls cert \n");
+		fflush(stdout);
+
 		if (mbedtls_x509_crt_parse(mosq->cert, (const unsigned char *)mosq->tls_cert, mosq->tls_cert_len) != 0) {
 			_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: mbedtls_x509_crt_parse fail");
 			return MOSQ_ERR_TLS;
@@ -979,9 +1029,12 @@ int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *ca
 	}
 #if defined(MBEDTLS_SSL_SESSION_TICKETS)
 	mbedtls_ssl_conf_session_tickets(mosq->ssl, 0);
+	printf("mbedtls_ssl_conf_session_tickets(mosq->ssl, 0);\n");   //Not implemented.
 #endif
 	mbedtls_ssl_config_init(mosq->ssl);
-
+	printf("mbedtls_ssl_config_init(mosq->ssl);\n");
+	fflush(stdout);
+	
 	if (mbedtls_ssl_config_defaults(mosq->ssl, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
 		_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: mbedtls_ssl_config_defaults fail");
 		return MOSQ_ERR_TLS;
@@ -990,9 +1043,16 @@ int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *ca
 	mbedtls_ssl_conf_rng(mosq->ssl, mbedtls_ctr_drbg_random, mosq->ctr_drbg);
 
 	if (mosq->tls_cert && mosq->tls_key) {
+		printf("mosq->tls_cert && mosq->tls_key\n"); 
+		fflush(stdout);
+
 		mbedtls_ssl_conf_ca_chain(mosq->ssl, ((mbedtls_x509_crt *)mosq->cert)->next, NULL);
 
+
 		if (mbedtls_ssl_conf_own_cert(mosq->ssl, mosq->cert, mosq->pkey) != 0) {
+			printf("mosq->ssl, mosq->tls_cert && mosq->pkey\n");
+			fflush(stdout);
+
 			_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: mbedtls_ssl_conf_own_cert fail");
 			return MOSQ_ERR_TLS;
 		}
@@ -1025,6 +1085,7 @@ int mosquitto_tls_set(struct mosquitto *mosq, const char *cafile, const char *ca
 
 int mosquitto_tls_opts_set(struct mosquitto *mosq, int cert_reqs, const char *tls_version, const char *ciphers)
 {
+	printf("mosquittooo tls opts set\n");
 #ifdef WITH_TLS
 	if (!mosq) {
 		return MOSQ_ERR_INVAL;
@@ -1082,6 +1143,9 @@ int mosquitto_tls_opts_set(struct mosquitto *mosq, int cert_reqs, const char *tl
 
 int mosquitto_tls_insecure_set(struct mosquitto *mosq, bool value)
 {
+	printf("mosquittooo tls insecure set\n");
+	fflush(stdout);
+
 #ifdef WITH_TLS
 	if (!mosq) {
 		return MOSQ_ERR_INVAL;

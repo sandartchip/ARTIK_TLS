@@ -221,6 +221,7 @@ struct mosquitto {
 	bool tls_insecure;
 #endif
 #ifdef WITH_TLS
+//#ifdef WITH_MBEDTLS
 	SSL *ssl;
 	SSL_CTX *ssl_ctx;
 	char *tls_cafile;

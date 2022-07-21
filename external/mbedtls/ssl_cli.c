@@ -48,7 +48,7 @@
 #define mbedtls_calloc    calloc
 #define mbedtls_free      free
 #endif
-
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -135,6 +135,9 @@ static void ssl_write_renegotiation_ext(mbedtls_ssl_context *ssl, unsigned char 
 {
 	unsigned char *p = buf;
 	const unsigned char *end = ssl->out_msg + MBEDTLS_SSL_MAX_CONTENT_LEN;
+
+	printf("mbedtls ssl server name indication\n");
+	fflush(stdout);
 
 	*olen = 0;
 
@@ -1281,11 +1284,18 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 	size_t ext_len;
 	unsigned char *buf, *ext;
 	unsigned char comp;
+
+	printf("server hello\n");
+	fflush(stdout);
+
 #if defined(MBEDTLS_ZLIB_SUPPORT)
 	int accept_comp;
 #endif
 #if defined(MBEDTLS_SSL_RENEGOTIATION)
 	int renegotiation_info_seen = 0;
+	printf("MEDTLS_SSL_RENEGOTITAION\n");
+	fflush(stdout);
+
 #endif
 	int handshake_failure = 0;
 	const mbedtls_ssl_ciphersuite_t *suite_info;
@@ -1297,20 +1307,40 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 
 	buf = ssl->in_msg;
 
+
+	printf("=> parse server hello\n");
+	fflush(stdout);
+
 	if ((ret = mbedtls_ssl_read_record(ssl)) != 0) {
 		MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_ssl_read_record", ret);
+
+		printf("mbedtls_ssl_read_record\n");
+		fflush(stdout);
+
 		return (ret);
 	}
 
 	if (ssl->in_msgtype != MBEDTLS_SSL_MSG_HANDSHAKE) {
+		printf("handshake 1\n");
+		fflush(stdout);
+
 #if defined(MBEDTLS_SSL_RENEGOTIATION)
 		if (ssl->renego_status == MBEDTLS_SSL_RENEGOTIATION_IN_PROGRESS) {
 			ssl->renego_records_seen++;
 
+			printf("handshake 2\n");
+			fflush(stdout);
+
 			if (ssl->conf->renego_max_records >= 0 && ssl->renego_records_seen > ssl->conf->renego_max_records) {
+				printf("handshake 3\n");
+				fflush(stdout);
+
 				MBEDTLS_SSL_DEBUG_MSG(1, ("renegotiation requested, " "but not honored by server"));
 				return (MBEDTLS_ERR_SSL_UNEXPECTED_MESSAGE);
 			}
+
+			printf("handshake 4\n");
+			fflush(stdout);
 
 			MBEDTLS_SSL_DEBUG_MSG(1, ("non-handshake message during renego"));
 			return (MBEDTLS_ERR_SSL_WAITING_SERVER_HELLO_RENEGO);
@@ -1318,9 +1348,15 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 #endif							/* MBEDTLS_SSL_RENEGOTIATION */
 
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
+
+		printf("handshake 5\n");
+		fflush(stdout);
 		return (MBEDTLS_ERR_SSL_UNEXPECTED_MESSAGE);
 	}
 #if defined(MBEDTLS_SSL_PROTO_DTLS)
+	printf("mbedtls_ssl_proto_dtls\n");
+	fflush(stdout);
+
 	if (ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_DATAGRAM) {
 		if (buf[0] == MBEDTLS_SSL_HS_HELLO_VERIFY_REQUEST) {
 			MBEDTLS_SSL_DEBUG_MSG(2, ("received hello verify request"));
@@ -1336,6 +1372,8 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 #endif							/* MBEDTLS_SSL_PROTO_DTLS */
 
 	if (ssl->in_hslen < 38 + mbedtls_ssl_hs_hdr_len(ssl) || buf[0] != MBEDTLS_SSL_HS_SERVER_HELLO) {
+		printf("bad server hello message");
+		fflush(stdout);
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
 		return (MBEDTLS_ERR_SSL_BAD_HS_SERVER_HELLO);
 	}
@@ -1356,8 +1394,16 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 	MBEDTLS_SSL_DEBUG_BUF(3, "server hello, version", buf + 0, 2);
 	mbedtls_ssl_read_version(&ssl->major_ver, &ssl->minor_ver, ssl->conf->transport, buf + 0);
 
+	//??????? ssl read version  ??????????
+
+	printf("server hello, version");
+	fflush(stdout);
+
 	if (ssl->major_ver < ssl->conf->min_major_ver || ssl->minor_ver < ssl->conf->min_minor_ver || ssl->major_ver > ssl->conf->max_major_ver || ssl->minor_ver > ssl->conf->max_minor_ver) {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("server version out of bounds - " " min: [%d:%d], server: [%d:%d], max: [%d:%d]", ssl->conf->min_major_ver, ssl->conf->min_minor_ver, ssl->major_ver, ssl->minor_ver, ssl->conf->max_major_ver, ssl->conf->max_minor_ver));
+
+		printf("server version out of bounds");
+		fflush(stdout);
 
 		mbedtls_ssl_send_alert_message(ssl, MBEDTLS_SSL_ALERT_LEVEL_FATAL, MBEDTLS_SSL_ALERT_MSG_PROTOCOL_VERSION);
 
@@ -1369,6 +1415,10 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 		| ((uint32_t)buf[4] << 8)
 		| ((uint32_t)buf[5]);
 	MBEDTLS_SSL_DEBUG_MSG(3, ("server hello, current time: %lu", t));
+	
+	printf("server hello, current time: %lu", t);
+	fflush(stdout);
+
 #endif
 
 	memcpy(ssl->handshake->randbytes + 32, buf + 2, 32);
@@ -1379,12 +1429,18 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 
 	if (n > 32) {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
+
+		printf("------bad server hello message\n");
+		fflush(stdout);
 		return (MBEDTLS_ERR_SSL_BAD_HS_SERVER_HELLO);
 	}
 
 	if (ssl->in_hslen > mbedtls_ssl_hs_hdr_len(ssl) + 39 + n) {
 		ext_len = ((buf[38 + n] << 8)
 				   | (buf[39 + n]));
+
+		printf("ssl->in_hslen > mbedtls_ssl_hs_hdr_len(ssl) + 39 + n\n");
+		fflush(stdout);
 
 		if ((ext_len > 0 && ext_len < 4) || ssl->in_hslen != mbedtls_ssl_hs_hdr_len(ssl) + 40 + n + ext_len) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
@@ -1394,6 +1450,10 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 		ext_len = 0;
 	} else {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
+		
+		printf("bad server hello message\n");
+		fflush(stdout);
+
 		return (MBEDTLS_ERR_SSL_BAD_HS_SERVER_HELLO);
 	}
 
@@ -1409,6 +1469,9 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 	/* See comments in ssl_write_client_hello() */
 #if defined(MBEDTLS_SSL_PROTO_DTLS)
 	if (ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_DATAGRAM) {
+		printf("ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_DATAGRAM");
+		fflush(stdout);
+
 		accept_comp = 0;
 	} else
 #endif
@@ -1419,6 +1482,9 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 	if (comp != MBEDTLS_SSL_COMPRESS_NULL)
 #endif							/* MBEDTLS_ZLIB_SUPPORT */
 	{
+		printf("server hello, bad compression\n");
+		fflush(stdout);
+
 		MBEDTLS_SSL_DEBUG_MSG(1, ("server hello, bad compression: %d", comp));
 		return (MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE);
 	}
@@ -1430,6 +1496,9 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 
 	if (ssl->transform_negotiate->ciphersuite_info == NULL) {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("ciphersuite info for %04x not found", i));
+		printf("ciphersuite info for %04x not found\n", i);
+		fflush(stdout);
+
 		return (MBEDTLS_ERR_SSL_BAD_INPUT_DATA);
 	}
 
@@ -1437,6 +1506,9 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 
 	MBEDTLS_SSL_DEBUG_MSG(3, ("server hello, session id len.: %d", n));
 	MBEDTLS_SSL_DEBUG_BUF(3, "server hello, session id", buf + 35, n);
+
+	printf("server hello, session id len: %d", n);
+	fflush(stdout);
 
 	/*
 	 * Check if the session can be resumed
@@ -1455,10 +1527,20 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 		ssl->session_negotiate->compression = comp;
 		ssl->session_negotiate->id_len = n;
 		memcpy(ssl->session_negotiate->id, buf + 35, n);
+
+		printf("memcpy(ssl->session_negotiate->id, buf + 35, n);\n");
+		fflush(stdout);
 	} else {
 		ssl->state = MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC;
 
+		printf("ssl->state = MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC\n");
+		fflush(stdout);
+			
+
 		if ((ret = mbedtls_ssl_derive_keys(ssl)) != 0) {
+			printf("mbedtls_ssl_derive_keys\n");
+			fflush(stdout);
+
 			MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_ssl_derive_keys", ret);
 			return (ret);
 		}
@@ -1467,7 +1549,13 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 	MBEDTLS_SSL_DEBUG_MSG(3, ("%s session has been resumed", ssl->handshake->resume ? "a" : "no"));
 
 	MBEDTLS_SSL_DEBUG_MSG(3, ("server hello, chosen ciphersuite: %04x", i));
+
+	printf("server hello, chosen ciphersuite: %04x\n", i);
+	fflush(stdout);
+
 	MBEDTLS_SSL_DEBUG_MSG(3, ("server hello, compress alg.: %d", buf[37 + n]));
+	printf("server hello, compress alg.: %d\n", buf[37 + n]);
+	fflush(stdout);
 
 	suite_info = mbedtls_ssl_ciphersuite_from_id(ssl->session_negotiate->ciphersuite);
 	if (suite_info == NULL
@@ -1476,15 +1564,22 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 #endif
 	   ) {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
+		printf("------bad server hello message\n");
+		fflush(stdout);
 		return (MBEDTLS_ERR_SSL_BAD_HS_SERVER_HELLO);
 	}
 
 	MBEDTLS_SSL_DEBUG_MSG(3, ("server hello, chosen ciphersuite: %s", suite_info->name));
+	printf("server hello, chosen ciphersuite: %s\n", suite_info->name);
+	fflush(stdout);
 
 	i = 0;
 	while (1) {
 		if (ssl->conf->ciphersuite_list[ssl->minor_ver][i] == 0) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("bad server hello message"));
+
+			printf("------------bad server hello message");
+			fflush(stdout);
 			return (MBEDTLS_ERR_SSL_BAD_HS_SERVER_HELLO);
 		}
 
@@ -1506,6 +1601,7 @@ static int ssl_parse_server_hello(mbedtls_ssl_context *ssl)
 	ext = buf + 40 + n;
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("server hello, total extension length: %d", ext_len));
+	printf("server hello, total extension length: %d", ext_len);
 
 	while (ext_len) {
 		unsigned int ext_id = ((ext[0] << 8)
@@ -1840,6 +1936,9 @@ static int ssl_write_encrypted_pms(mbedtls_ssl_context *ssl, size_t offset, size
 	int ret;
 	size_t len_bytes = ssl->minor_ver == MBEDTLS_SSL_MINOR_VERSION_0 ? 0 : 2;
 	unsigned char *p = ssl->handshake->premaster + pms_offset;
+	
+	printf("----generate pre master secret!!!!!!!!!!!!!---------");
+	fflush(stdout);
 
 	if (offset + len_bytes > MBEDTLS_SSL_MAX_CONTENT_LEN) {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("buffer too small for encrypted pms"));
@@ -1876,6 +1975,10 @@ static int ssl_write_encrypted_pms(mbedtls_ssl_context *ssl, size_t offset, size
 	}
 
 	if ((ret = mbedtls_pk_encrypt(&ssl->session_negotiate->peer_cert->pk, p, ssl->handshake->pmslen, ssl->out_msg + offset + len_bytes, olen, MBEDTLS_SSL_MAX_CONTENT_LEN - offset - len_bytes, ssl->conf->f_rng, ssl->conf->p_rng)) != 0) {
+
+		printf("---mbedtls rsa premaster secret encrypted\n");
+		fflush(stdout);
+
 		MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_rsa_pkcs1_encrypt", ret);
 		return (ret);
 	}
@@ -1903,6 +2006,10 @@ static int ssl_parse_signature_algorithm(mbedtls_ssl_context *ssl, unsigned char
 	*md_alg = MBEDTLS_MD_NONE;
 	*pk_alg = MBEDTLS_PK_NONE;
 
+
+	printf("ssl_parse_signature_algo\n");
+	fflush(stdout);
+	
 	/* Only in TLS 1.2 */
 	if (ssl->minor_ver != MBEDTLS_SSL_MINOR_VERSION_3) {
 		return (0);
@@ -1923,8 +2030,15 @@ static int ssl_parse_signature_algorithm(mbedtls_ssl_context *ssl, unsigned char
 	/*
 	 * Get signature algorithm
 	 */
+	printf("get signatuer algo\n");
+	fflush(stdout);
+
 	if ((*pk_alg = mbedtls_ssl_pk_alg_from_sig((*p)[1])) == MBEDTLS_PK_NONE) {
 		MBEDTLS_SSL_DEBUG_MSG(1, ("server used unsupported " "SignatureAlgorithm %d", (*p)[1]));
+		
+		printf("server used unsupported " "SignatureAlgorithm %d", (*p)[1]);
+		fflush(stdout);	
+
 		return (MBEDTLS_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE);
 	}
 
@@ -1938,6 +2052,11 @@ static int ssl_parse_signature_algorithm(mbedtls_ssl_context *ssl, unsigned char
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("Server used SignatureAlgorithm %d", (*p)[1]));
 	MBEDTLS_SSL_DEBUG_MSG(2, ("Server used HashAlgorithm %d", (*p)[0]));
+
+	printf("Server used SignatureAlgorithm %d", (*p)[1]);
+	printf("Server used HashAlgorithm %d", (*p)[0]);
+	fflush(stdout);
+
 	*p += 2;
 
 	return (0);
@@ -2279,6 +2398,9 @@ static int ssl_parse_certificate_request(mbedtls_ssl_context *ssl)
 	const mbedtls_ssl_ciphersuite_t *ciphersuite_info = ssl->transform_negotiate->ciphersuite_info;
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("=> parse certificate request"));
+
+	printf("ssssssssss---------parse certificate req\n");
+	fflush(stdout);
 
 	if (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_RSA_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECJPAKE || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDH_ANON) {
 		MBEDTLS_SSL_DEBUG_MSG(2, ("<= skip parse certificate request"));
@@ -2907,20 +3029,33 @@ static int ssl_parse_new_session_ticket(mbedtls_ssl_context *ssl)
  */
 int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 {
+	printf("cli a\n");
+	fflush(stdout);
+
 	int ret = 0;
 
 	if (ssl->state == MBEDTLS_SSL_HANDSHAKE_OVER || ssl->handshake == NULL) {
+		printf("cli b\n");
+		fflush(stdout);
 		return (MBEDTLS_ERR_SSL_BAD_INPUT_DATA);
 	}
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("client state: %d", ssl->state));
 
 	if ((ret = mbedtls_ssl_flush_output(ssl)) != 0) {
+		printf("cli c\n");
+		fflush(stdout);
 		return (ret);
 	}
 #if defined(MBEDTLS_SSL_PROTO_DTLS)
+	printf("cli d\n");
+	fflush(stdout);
 	if (ssl->conf->transport == MBEDTLS_SSL_TRANSPORT_DATAGRAM && ssl->handshake->retransmit_state == MBEDTLS_SSL_RETRANS_SENDING) {
+		printf("cli e\n");
+		fflush(stdout);
 		if ((ret = mbedtls_ssl_resend(ssl)) != 0) {
+			printf("cli f\n");
+			fflush(stdout);
 			return (ret);
 		}
 	}
@@ -2929,7 +3064,11 @@ int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 	/* Change state now, so that it is right in mbedtls_ssl_read_record(), used
 	 * by DTLS for dropping out-of-sequence ChangeCipherSpec records */
 #if defined(MBEDTLS_SSL_SESSION_TICKETS)
+	printf("cli g\n");
+	fflush(stdout);
 	if (ssl->state == MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC && ssl->handshake->new_session_ticket != 0) {
+		printf("cli h\n");
+		fflush(stdout);
 		ssl->state = MBEDTLS_SSL_SERVER_NEW_SESSION_TICKET;
 	}
 #endif
@@ -2937,6 +3076,8 @@ int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 	switch (ssl->state) {
 	case MBEDTLS_SSL_HELLO_REQUEST:
 		ssl->state = MBEDTLS_SSL_CLIENT_HELLO;
+		printf("cli i\n");
+		fflush(stdout);
 		break;
 
 		/*
@@ -2944,6 +3085,7 @@ int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 		 */
 	case MBEDTLS_SSL_CLIENT_HELLO:
 		ret = ssl_write_client_hello(ssl);
+		printf("cli j\n");
 		break;
 
 		/*
@@ -2954,22 +3096,34 @@ int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 		 *        ServerHelloDone
 		 */
 	case MBEDTLS_SSL_SERVER_HELLO:
+		printf("cli k\n");
 		ret = ssl_parse_server_hello(ssl);
 		break;
 
 	case MBEDTLS_SSL_SERVER_CERTIFICATE:
+		printf("------------cli l----.parse server cert----------\n");
+		fflush(stdout);
 		ret = mbedtls_ssl_parse_certificate(ssl);
+
+		printf("-------------cli l  END MBEDTLS_SSL_PARSE_CERTIFICATE-----------------\n");
+		fflush(stdout);
 		break;
 
 	case MBEDTLS_SSL_SERVER_KEY_EXCHANGE:
+		printf("cli m\n");
+		fflush(stdout);
 		ret = ssl_parse_server_key_exchange(ssl);
 		break;
 
 	case MBEDTLS_SSL_CERTIFICATE_REQUEST:
+		printf("cli n\n");
+		fflush(stdout);
 		ret = ssl_parse_certificate_request(ssl);
 		break;
 
 	case MBEDTLS_SSL_SERVER_HELLO_DONE:
+		printf("cli o\n");
+		fflush(stdout);
 		ret = ssl_parse_server_hello_done(ssl);
 		break;
 
@@ -2981,22 +3135,28 @@ int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 		 *        Finished
 		 */
 	case MBEDTLS_SSL_CLIENT_CERTIFICATE:
+		printf("cli p\n");
+		fflush(stdout);
 		ret = mbedtls_ssl_write_certificate(ssl);
 		break;
 
 	case MBEDTLS_SSL_CLIENT_KEY_EXCHANGE:
+		printf("cli q\n");
 		ret = ssl_write_client_key_exchange(ssl);
 		break;
 
 	case MBEDTLS_SSL_CERTIFICATE_VERIFY:
+		printf("cli r\n");
 		ret = ssl_write_certificate_verify(ssl);
 		break;
 
 	case MBEDTLS_SSL_CLIENT_CHANGE_CIPHER_SPEC:
+		printf("cli s\n");
 		ret = mbedtls_ssl_write_change_cipher_spec(ssl);
 		break;
 
 	case MBEDTLS_SSL_CLIENT_FINISHED:
+		printf("cli t\n");
 		ret = mbedtls_ssl_write_finished(ssl);
 		break;
 
@@ -3007,11 +3167,13 @@ int mbedtls_ssl_handshake_client_step(mbedtls_ssl_context *ssl)
 		 */
 #if defined(MBEDTLS_SSL_SESSION_TICKETS)
 	case MBEDTLS_SSL_SERVER_NEW_SESSION_TICKET:
+		printf("cli new session\n");
 		ret = ssl_parse_new_session_ticket(ssl);
 		break;
 #endif
 
 	case MBEDTLS_SSL_SERVER_CHANGE_CIPHER_SPEC:
+		printf("cli server change cipher\n");
 		ret = mbedtls_ssl_parse_change_cipher_spec(ssl);
 		break;
 

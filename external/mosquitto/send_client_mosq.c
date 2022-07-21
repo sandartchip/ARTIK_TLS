@@ -59,6 +59,8 @@ int _mosquitto_send_connect(struct mosquitto *mosq, uint16_t keepalive, bool cle
 
 	assert(mosq);
 	assert(mosq->id);
+	printf("mosquitto send connect\n");
+	fflush(stdout);
 
 #if defined(WITH_BROKER) && defined(WITH_BRIDGE)
 	if (mosq->bridge) {

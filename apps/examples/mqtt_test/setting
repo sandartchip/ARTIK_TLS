@@ -1,0 +1,7 @@
+
+wifi startsta
+wifi join hohoho yayayaya
+ifconfig wl1 dhcp
+mqtt_sub -h 192.168.0.2 -p 8883 -t test -d 
+
+mqtt_pub -h 192.168.0.2 -p 8883 -t test -m "~~~hihi~~~tls"

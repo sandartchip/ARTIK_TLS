@@ -66,6 +66,7 @@
 #include "mbedtls/ssl_internal.h"
 
 #include <string.h>
+#include <stdio.h>
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 #include "mbedtls/oid.h"
@@ -3493,6 +3494,8 @@ int mbedtls_ssl_send_alert_message(mbedtls_ssl_context *ssl, unsigned char level
 /*
  * Handshake functions
  */
+/*??????????????????????????????????????????????????*/
+
 #if !defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED)         && \
 !defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)     && \
 !defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)     && \
@@ -3500,6 +3503,8 @@ int mbedtls_ssl_send_alert_message(mbedtls_ssl_context *ssl, unsigned char level
 !defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) && \
 !defined(MBEDTLS_KEY_EXCHANGE_ECDH_RSA_ENABLED)    && \
 !defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
+
+
 int mbedtls_ssl_write_certificate(mbedtls_ssl_context *ssl)
 {
 	const mbedtls_ssl_ciphersuite_t *ciphersuite_info = ssl->transform_negotiate->ciphersuite_info;
@@ -3519,6 +3524,8 @@ int mbedtls_ssl_write_certificate(mbedtls_ssl_context *ssl)
 int mbedtls_ssl_parse_certificate(mbedtls_ssl_context *ssl)
 {
 	const mbedtls_ssl_ciphersuite_t *ciphersuite_info = ssl->transform_negotiate->ciphersuite_info;
+	printf("ssl_parse_certificate\n");
+	fflush(stdout);
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("=> parse certificate"));
 
@@ -3640,35 +3647,55 @@ int mbedtls_ssl_parse_certificate(mbedtls_ssl_context *ssl)
 	size_t i, n;
 	const mbedtls_ssl_ciphersuite_t *ciphersuite_info = ssl->transform_negotiate->ciphersuite_info;
 	int authmode = ssl->conf->authmode;
+	printf("authmode = %d\n", authmode);	
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("=> parse certificate"));
 
 	if (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_DHE_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDHE_PSK || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECJPAKE || ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_ECDH_ANON) {
 		MBEDTLS_SSL_DEBUG_MSG(2, ("<= skip parse certificate"));
+		printf("cert 1\n");
+		fflush(stdout);
 		ssl->state++;
 		return (0);
 	}
 #if defined(MBEDTLS_SSL_SRV_C)
 	if (ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER && ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_RSA_PSK) {
 		MBEDTLS_SSL_DEBUG_MSG(2, ("<= skip parse certificate"));
+		
+		printf("cert 2\n");
+		fflush(stdout);
+
 		ssl->state++;
 		return (0);
 	}
 #if defined(MBEDTLS_SSL_SERVER_NAME_INDICATION)
 	if (ssl->handshake->sni_authmode != MBEDTLS_SSL_VERIFY_UNSET) {
 		authmode = ssl->handshake->sni_authmode;
+		printf("cert 3\n");
+		fflush(stdout);		
 	}
 #endif
 
 	if (ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER && authmode == MBEDTLS_SSL_VERIFY_NONE) {
 		ssl->session_negotiate->verify_result = MBEDTLS_X509_BADCERT_SKIP_VERIFY;
 		MBEDTLS_SSL_DEBUG_MSG(2, ("<= skip parse certificate"));
+
+
+
+		printf("cert 4\n");
+		fflush(stdout);
+		
 		ssl->state++;
 		return (0);
 	}
 #endif
 
 	if ((ret = mbedtls_ssl_read_record(ssl)) != 0) {
+
+
+		printf("cert 5\n");
+		fflush(stdout);
+		
 		MBEDTLS_SSL_DEBUG_RET(1, "mbedtls_ssl_read_record", ret);
 		return (ret);
 	}
@@ -3683,6 +3710,11 @@ int mbedtls_ssl_parse_certificate(mbedtls_ssl_context *ssl)
 	if (ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER && ssl->minor_ver == MBEDTLS_SSL_MINOR_VERSION_0) {
 		if (ssl->in_msglen == 2 && ssl->in_msgtype == MBEDTLS_SSL_MSG_ALERT && ssl->in_msg[0] == MBEDTLS_SSL_ALERT_LEVEL_WARNING && ssl->in_msg[1] == MBEDTLS_SSL_ALERT_MSG_NO_CERT) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("SSLv3 client has no certificate"));
+
+
+			printf("SSLv3 client has no certificate\n");
+			fflush(stdout);
+
 
 			ssl->session_negotiate->verify_result = MBEDTLS_X509_BADCERT_MISSING;
 			if (authmode == MBEDTLS_SSL_VERIFY_OPTIONAL) {
@@ -3700,10 +3732,15 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 		if (ssl->in_hslen == 3 + mbedtls_ssl_hs_hdr_len(ssl) && ssl->in_msgtype == MBEDTLS_SSL_MSG_HANDSHAKE && ssl->in_msg[0] == MBEDTLS_SSL_HS_CERTIFICATE && memcmp(ssl->in_msg + mbedtls_ssl_hs_hdr_len(ssl), "\0\0\0", 3) == 0) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("TLSv1 client has no certificate"));
 
+			printf("tls cli 1");
+			fflush(stdout);
+
 			ssl->session_negotiate->verify_result = MBEDTLS_X509_BADCERT_MISSING;
 			if (authmode == MBEDTLS_SSL_VERIFY_OPTIONAL) {
 				return (0);
 			} else {
+					printf("tls cli 2");
+					fflush(stdout);
 				return (MBEDTLS_ERR_SSL_NO_CLIENT_CERTIFICATE);
 			}
 		}
@@ -3713,11 +3750,17 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 #endif							/* MBEDTLS_SSL_SRV_C */
 
 	if (ssl->in_msgtype != MBEDTLS_SSL_MSG_HANDSHAKE) {
+
+		printf("tls cli 3");
+		fflush(stdout);
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate message"));
 		return (MBEDTLS_ERR_SSL_UNEXPECTED_MESSAGE);
 	}
 
 	if (ssl->in_msg[0] != MBEDTLS_SSL_HS_CERTIFICATE || ssl->in_hslen < mbedtls_ssl_hs_hdr_len(ssl) + 3 + 3) {
+
+		printf("tls cli 4");
+		fflush(stdout);
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate message"));
 		return (MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE);
 	}
@@ -3730,17 +3773,26 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 	n = (ssl->in_msg[i + 1] << 8) | ssl->in_msg[i + 2];
 
 	if (ssl->in_msg[i] != 0 || ssl->in_hslen != n + 3 + mbedtls_ssl_hs_hdr_len(ssl)) {
+
+		printf("tls cli 5");
+		fflush(stdout);
 		MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate message"));
 		return (MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE);
 	}
 
 	/* In case we tried to reuse a session but it failed */
 	if (ssl->session_negotiate->peer_cert != NULL) {
+
+		printf("tls cli 6");
+		fflush(stdout);
 		mbedtls_x509_crt_free(ssl->session_negotiate->peer_cert);
 		mbedtls_free(ssl->session_negotiate->peer_cert);
 	}
 
 	if ((ssl->session_negotiate->peer_cert = mbedtls_calloc(1, sizeof(mbedtls_x509_crt))) == NULL) {
+
+		printf("tls cli 7");
+		fflush(stdout);
 		MBEDTLS_SSL_DEBUG_MSG(1, ("alloc(%d bytes) failed", sizeof(mbedtls_x509_crt)));
 		return (MBEDTLS_ERR_SSL_ALLOC_FAILED);
 	}
@@ -3751,6 +3803,8 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 
 	while (i < ssl->in_hslen) {
 		if (ssl->in_msg[i] != 0) {
+			printf("tls cli 8\n");
+			fflush(stdout);
 			MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate message"));
 			return (MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE);
 		}
@@ -3760,12 +3814,21 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 		i += 3;
 
 		if (n < 128 || i + n > ssl->in_hslen) {
+
+			printf("tls cli 9\n");
+			fflush(stdout);
+
 			MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate message"));
 			return (MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE);
 		}
 
 		ret = mbedtls_x509_crt_parse_der(ssl->session_negotiate->peer_cert, ssl->in_msg + i, n);
 		if (0 != ret && (MBEDTLS_ERR_X509_UNKNOWN_SIG_ALG + MBEDTLS_ERR_OID_NOT_FOUND) != ret) {
+
+
+			printf("tls cli 10\n");
+			fflush(stdout);
+
 			MBEDTLS_SSL_DEBUG_RET(1, " mbedtls_x509_crt_parse_der", ret);
 			return (ret);
 		}
@@ -3775,6 +3838,10 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 
 	MBEDTLS_SSL_DEBUG_CRT(3, "peer certificate", ssl->session_negotiate->peer_cert);
 
+
+	printf("tls cli 11\n");
+	fflush(stdout);
+
 	/*
 	 * On client, make sure the server cert doesn't change during renego to
 	 * avoid "triple handshake" attack: https://secure-resumption.com/
@@ -3783,11 +3850,17 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 	if (ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT && ssl->renego_status == MBEDTLS_SSL_RENEGOTIATION_IN_PROGRESS) {
 		if (ssl->session->peer_cert == NULL) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("new server cert during renegotiation"));
+
+			printf("tls cli 12\n");
+			fflush(stdout);
 			return (MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE);
 		}
 
 		if (ssl->session->peer_cert->raw.len != ssl->session_negotiate->peer_cert->raw.len || memcmp(ssl->session->peer_cert->raw.p, ssl->session_negotiate->peer_cert->raw.p, ssl->session->peer_cert->raw.len) != 0) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("server cert changed during renegotiation"));
+
+			printf("tls cli 13\n");
+			fflush(stdout);
 			return (MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE);
 		}
 	}
@@ -3796,9 +3869,14 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 	if (authmode != MBEDTLS_SSL_VERIFY_NONE) {
 		mbedtls_x509_crt *ca_chain;
 		mbedtls_x509_crl *ca_crl;
+		printf("tls cli 14\n");
+		fflush(stdout);
 
 #if defined(MBEDTLS_SSL_SERVER_NAME_INDICATION)
 		if (ssl->handshake->sni_ca_chain != NULL) {
+			printf("tls cli 15\n");
+			fflush(stdout);
+
 			ca_chain = ssl->handshake->sni_ca_chain;
 			ca_crl = ssl->handshake->sni_ca_crl;
 		} else
@@ -3809,6 +3887,9 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 		}
 
 		if (ca_chain == NULL) {
+
+			printf("tls cli 16\n");
+			fflush(stdout);
 			MBEDTLS_SSL_DEBUG_MSG(1, ("got no CA chain"));
 			return (MBEDTLS_ERR_SSL_CA_CHAIN_REQUIRED);
 		}
@@ -3818,7 +3899,9 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 		 */
 		ret = mbedtls_x509_crt_verify_with_profile(ssl->session_negotiate->peer_cert, ca_chain, ca_crl, ssl->conf->cert_profile, ssl->hostname, &ssl->session_negotiate->verify_result, ssl->conf->f_vrfy, ssl->conf->p_vrfy);
 
-		if (ret != 0) {
+		if (ret != 0) { //success return must be 0 
+			printf("tls cli 17... ret is %d\n",ret);
+			fflush(stdout);
 			MBEDTLS_SSL_DEBUG_RET(1, "x509_verify_cert", ret);
 		}
 
@@ -3830,10 +3913,18 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 		{
 			const mbedtls_pk_context *pk = &ssl->session_negotiate->peer_cert->pk;
 
+			printf("tls cli 18\n");
+			fflush(stdout);
+
 			/* If certificate uses an EC key, make sure the curve is OK */
 			if (mbedtls_pk_can_do(pk, MBEDTLS_PK_ECKEY) && mbedtls_ssl_check_curve(ssl, mbedtls_pk_ec(*pk)->grp.id) != 0) {
 				MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate (EC key curve)"));
+				printf("tls cli 18\n");
+				fflush(stdout);
+
 				if (ret == 0) {
+					printf("tls cli 19\n");
+					fflush(stdout);
 					ret = MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE;
 				}
 			}
@@ -3842,18 +3933,26 @@ defined(MBEDTLS_SSL_PROTO_TLS1_2)
 
 		if (mbedtls_ssl_check_cert_usage(ssl->session_negotiate->peer_cert, ciphersuite_info, !ssl->conf->endpoint, &ssl->session_negotiate->verify_result) != 0) {
 			MBEDTLS_SSL_DEBUG_MSG(1, ("bad certificate (usage extensions)"));
+			printf("tls cli 20\n");
+			fflush(stdout);
 			if (ret == 0) {
+					printf("tls cli 21\n");
+					fflush(stdout);
 				ret = MBEDTLS_ERR_SSL_BAD_HS_CERTIFICATE;
 			}
 		}
 
 		if (authmode == MBEDTLS_SSL_VERIFY_OPTIONAL) {
+
+				printf("tls cli 22\n");
+				fflush(stdout);
 			ret = 0;
 		}
 	}
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("<= parse certificate"));
-
+	printf("------ret = %d\n", ret);
+	fflush(stdout);
 	return (ret);
 }
 #endif							/* !MBEDTLS_KEY_EXCHANGE_RSA_ENABLED
@@ -4906,6 +5005,8 @@ void mbedtls_ssl_conf_handshake_timeout(mbedtls_ssl_config *conf, uint32_t min, 
 
 void mbedtls_ssl_conf_authmode(mbedtls_ssl_config *conf, int authmode)
 {
+	printf("conf auth mode\n");
+	fflush(stdout);	
 	conf->authmode = authmode;
 }
 
@@ -4919,6 +5020,8 @@ void mbedtls_ssl_conf_verify(mbedtls_ssl_config *conf, int (*f_vrfy)(void *, mbe
 
 void mbedtls_ssl_conf_rng(mbedtls_ssl_config *conf, int (*f_rng)(void *, unsigned char *, size_t), void *p_rng)
 {
+	printf("mbedtls_ssl_conf_rng\n");
+	fflush(stdout);
 	conf->f_rng = f_rng;
 	conf->p_rng = p_rng;
 }
@@ -4931,6 +5034,8 @@ void mbedtls_ssl_conf_dbg(mbedtls_ssl_config *conf, void (*f_dbg)(void *, int, c
 
 void mbedtls_ssl_set_bio(mbedtls_ssl_context *ssl, void *p_bio, mbedtls_ssl_send_t *f_send, mbedtls_ssl_recv_t *f_recv, mbedtls_ssl_recv_timeout_t *f_recv_timeout)
 {
+	printf("mbed tls ssl set bio!!!!!!!!!!!!");
+	fflush(stdout);
 	ssl->p_bio = p_bio;
 	ssl->f_send = f_send;
 	ssl->f_recv = f_recv;
@@ -4944,6 +5049,8 @@ void mbedtls_ssl_conf_read_timeout(mbedtls_ssl_config *conf, uint32_t timeout)
 
 void mbedtls_ssl_set_timer_cb(mbedtls_ssl_context *ssl, void *p_timer, mbedtls_ssl_set_timer_t *f_set_timer, mbedtls_ssl_get_timer_t *f_get_timer)
 {
+	printf("ssl set timer cb\n");
+	fflush(stdout);
 	ssl->p_timer = p_timer;
 	ssl->f_set_timer = f_set_timer;
 	ssl->f_get_timer = f_get_timer;
@@ -4955,6 +5062,8 @@ void mbedtls_ssl_set_timer_cb(mbedtls_ssl_context *ssl, void *p_timer, mbedtls_s
 #if defined(MBEDTLS_SSL_SRV_C)
 void mbedtls_ssl_conf_session_cache(mbedtls_ssl_config *conf, void *p_cache, int (*f_get_cache)(void *, mbedtls_ssl_session *), int (*f_set_cache)(void *, const mbedtls_ssl_session *))
 {
+	printf("#if defined(MBEDTLS_SSL_SRV_C) void mbedtls_ssl_conf_session_cache\n");
+	fflush(stdout);
 	conf->p_cache = p_cache;
 	conf->f_get_cache = f_get_cache;
 	conf->f_set_cache = f_set_cache;
@@ -4964,6 +5073,8 @@ void mbedtls_ssl_conf_session_cache(mbedtls_ssl_config *conf, void *p_cache, int
 #if defined(MBEDTLS_SSL_CLI_C)
 int mbedtls_ssl_set_session(mbedtls_ssl_context *ssl, const mbedtls_ssl_session *session)
 {
+	printf("mbedtls_ssl_set_session\n");
+	fflush(stdout);
 	int ret;
 
 	if (ssl == NULL || session == NULL || ssl->session_negotiate == NULL || ssl->conf->endpoint != MBEDTLS_SSL_IS_CLIENT) {
@@ -5050,17 +5161,23 @@ void mbedtls_ssl_conf_ca_chain(mbedtls_ssl_config *conf, mbedtls_x509_crt *ca_ch
 #if defined(MBEDTLS_SSL_SERVER_NAME_INDICATION)
 int mbedtls_ssl_set_hs_own_cert(mbedtls_ssl_context *ssl, mbedtls_x509_crt *own_cert, mbedtls_pk_context *pk_key)
 {
+	printf("mbedtls_ssl_set_hs_own_cert\n");
+	fflush(stdout);
 	return (ssl_append_key_cert(&ssl->handshake->sni_key_cert, own_cert, pk_key));
 }
 
 void mbedtls_ssl_set_hs_ca_chain(mbedtls_ssl_context *ssl, mbedtls_x509_crt *ca_chain, mbedtls_x509_crl *ca_crl)
 {
+	printf("void mbedtls_ssl_set_hs_ca_chain\n");
+	fflush(stdout);
 	ssl->handshake->sni_ca_chain = ca_chain;
 	ssl->handshake->sni_ca_crl = ca_crl;
 }
 
 void mbedtls_ssl_set_hs_authmode(mbedtls_ssl_context *ssl, int authmode)
 {
+	printf("mbedtls_ssl_set_hs_authmode\n");
+	fflush(stdout);
 	ssl->handshake->sni_authmode = authmode;
 }
 #endif							/* MBEDTLS_SSL_SERVER_NAME_INDICATION */
@@ -5090,6 +5207,8 @@ int mbedtls_ssl_set_hs_ecjpake_password(mbedtls_ssl_context *ssl, const unsigned
 #if defined(MBEDTLS_KEY_EXCHANGE__SOME__PSK_ENABLED)
 int mbedtls_ssl_conf_psk(mbedtls_ssl_config *conf, const unsigned char *psk, size_t psk_len, const unsigned char *psk_identity, size_t psk_identity_len)
 {
+	printf("mbedtls_ssl_conf_psk\n");
+	fflush(stdout);
 	if (psk == NULL || psk_identity == NULL) {
 		return (MBEDTLS_ERR_SSL_BAD_INPUT_DATA);
 	}
@@ -5550,19 +5669,28 @@ int mbedtls_ssl_get_session(const mbedtls_ssl_context *ssl, mbedtls_ssl_session 
  */
 int mbedtls_ssl_handshake_step(mbedtls_ssl_context *ssl)
 {
+	printf("handshake step\n");
 	int ret = MBEDTLS_ERR_SSL_FEATURE_UNAVAILABLE;
+	printf("red %d\n", ret);
 
 	if (ssl == NULL || ssl->conf == NULL) {
+		printf("bad input\n");
 		return (MBEDTLS_ERR_SSL_BAD_INPUT_DATA);
 	}
 #if defined(MBEDTLS_SSL_CLI_C)
+	printf("#if defined(MBEDTLS_SSL_CLI_C)\n");
 	if (ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT) {
+		printf("bad input\n");
 		ret = mbedtls_ssl_handshake_client_step(ssl);
+		printf("step client okok\n");
 	}
 #endif
 #if defined(MBEDTLS_SSL_SRV_C)
+	printf("#if defined(MBEDTLS_SSL_SRV_C)\n");
 	if (ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER) {
+		printf("if (ssl->conf->endpoint == MBEDTLS_SSL_IS_SERVER) ");
 		ret = mbedtls_ssl_handshake_server_step(ssl);
+		printf("step server okok\n");
 	}
 #endif
 
@@ -5575,15 +5703,21 @@ int mbedtls_ssl_handshake_step(mbedtls_ssl_context *ssl)
 int mbedtls_ssl_handshake(mbedtls_ssl_context *ssl)
 {
 	int ret = 0;
+	printf("ssl handshake~~~~~~~~~~~~~\n");
 
 	if (ssl == NULL || ssl->conf == NULL) {
+		printf("ssl bad input data~~~~~~~~~~~~~\n");
+		printf("ssl %p\n ssl conf%p\n", ssl, ssl->conf);
 		return (MBEDTLS_ERR_SSL_BAD_INPUT_DATA);
 	}
 
 	MBEDTLS_SSL_DEBUG_MSG(2, ("=> handshake"));
+	
 
 	while (ssl->state != MBEDTLS_SSL_HANDSHAKE_OVER) {
+		printf("ssl state is not HANDSHAKE OVER~~\n");
 		ret = mbedtls_ssl_handshake_step(ssl);
+		printf("ret ret\n");
 
 		if (ret != 0) {
 			break;
@@ -5742,6 +5876,8 @@ static int ssl_check_ctr_renegotiate(mbedtls_ssl_context *ssl)
  */
 int mbedtls_ssl_read(mbedtls_ssl_context *ssl, unsigned char *buf, size_t len)
 {
+	printf("mbedtls ssl read\n");
+	fflush(stdout);
 	int ret, record_read = 0;
 	size_t n;
 
@@ -6352,6 +6488,8 @@ int mbedtls_ssl_config_defaults(mbedtls_ssl_config *conf, int endpoint, int tran
 	 */
 #if defined(MBEDTLS_SSL_CLI_C)
 	if (endpoint == MBEDTLS_SSL_IS_CLIENT) {
+		printf("conf->authmode = MBEDTLS_SSL_VERIFY_REQUIRED~~~~~~~~~~~~~~");
+		fflush(stdout);
 		conf->authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
 #if defined(MBEDTLS_SSL_SESSION_TICKETS)
 		conf->session_tickets = MBEDTLS_SSL_SESSION_TICKETS_ENABLED;

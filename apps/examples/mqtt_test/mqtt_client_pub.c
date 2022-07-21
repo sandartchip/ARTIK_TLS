@@ -102,6 +102,78 @@ static int g_protocol_version;
 static bool g_nullmsg;
 static bool g_debug;
 
+static const char mqtt_ca_crt_rsa[] =
+
+"-----BEGIN CERTIFICATE-----\r\n"
+"MIIDATCCAemgAwIBAgIJAJewGaqWVRh4MA0GCSqGSIb3DQEBCwUAMBcxFTATBgNV\r\n"
+"BAMMDG1vc3F1aXR0b19jYTAeFw0xNzEwMTcwMjA3NDJaFw0yNzEwMTUwMjA3NDJa\r\n"
+"MBcxFTATBgNVBAMMDG1vc3F1aXR0b19jYTCCASIwDQYJKoZIhvcNAQEBBQADggEP\r\n"
+"ADCCAQoCggEBAOJc3JF5BhhwvzrDkGZ6lJGy2I0BNFIMbNoRToK5eN7CrCDd+lQT\r\n"
+"aAH943RQd29TUKcJN+FcAWOLzO84OhKs1h8SLZ8HMs65/oeL7lO8fWdAdY+p5HC0\r\n"
+"+m1/zAhuv1bLLbXKZRLqz3xZyIfcphOGTEVz0PpkbUfVQJhBq+BHpRUXgTgvpT4h\r\n"
+"j4iarCj+h9bAWAm/0hzkJFvSkrU/tNbIRSSbnV0AWCxBQYY9me6ecXYairUY4MuY\r\n"
+"3PEMy+UY/gvmgLZf6XKJkOREGFkeJvnJL7lEPMpt5RZ9tiC969xj2xMHHk5BloBo\r\n"
+"0hRUfjZsR3qZ/B+4CjS7kDlTol1VLuB4hr8CAwEAAaNQME4wHQYDVR0OBBYEFCUn\r\n"
+"I0u8R6ocQMdivX/m0W6sHjjKMB8GA1UdIwQYMBaAFCUnI0u8R6ocQMdivX/m0W6s\r\n"
+"HjjKMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAEFxriNmUYtrupNu\r\n"
+"MABBQp1gsIzzrqZYp7Epzeg1L4+hYAsxN9SJoHy3R/ybjZtDpT0U+1cTvwEwORKW\r\n"
+"+p8CPZmIbJBLDmrxUc+tV9m8gDBikGcz/Mz2zgKMj0ArTpKvsQGD3IQtiJuV8j7U\r\n"
+"LlcVseszknydQxEP5f3qNrN/Ax0dSRNSVbtunbScu86Okpa4SDAEd7aRw6PVfHP+\r\n"
+"/UZ7JLHJtVgN7psWIXLXUMC8M1knpAh7OMtdUODDmZh60xDqAvvOafbc9WKhvjk3\r\n"
+"RpSkbeD+BWqJhphRfUznKB7+pqPbW690vwN0l5QWpf3duDF8lWfl37SCTZbJA9Xs\r\n"
+"wWt2Yb4=\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+
+
+static const char mqtt_cli_crt_rsa[] =
+"-----BEGIN CERTIFICATE-----\r\n"
+"MIICqTCCAZECCQDmpGD+sAcL8zANBgkqhkiG9w0BAQsFADAXMRUwEwYDVQQDDAxt\r\n"
+"b3NxdWl0dG9fY2EwHhcNMTcxMDE4MTc1NjI3WhcNMjcxMDE2MTc1NjI3WjAWMRQw\r\n"
+"EgYDVQQDDAttcXR0X2NsaWVudDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\r\n"
+"ggEBAK0vmwRWDrrjYIG9z+qWXatDQcnRViftGtXXbxLT5rxv1M7L/KQyfl7nqsWH\r\n"
+"3fTfu9pTIGlq/Vc8rFKnShTweepyVeXuu7gr6CaOOYFt9E7SzvYwI/EcjmUu5A7K\r\n"
+"6VAKWELSlW1aah1/klR2x245nIe5rtIhYdnYg1NSAdmQLATI1s/6jxebHYahK1Ti\r\n"
+"tFiAZmCe9h2njLlO77oea5Jv1uvHEk/k9As6ZiQATnXKbg1L1tbrX2KX2voQXYuH\r\n"
+"doLoil0thRA/gG9InyF+NdRWXEZ4D4ccToAoXw7pPX5z6GzovEEi3AHYpPc8FQ/L\r\n"
+"HB0fyWdOYQ7pDPyhC+tWlwaKST8CAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAHxhM\r\n"
+"WdiyXPpoazKif/2GDgfDqJd4Kz6Zb5WDTK9n483ejK4bfIyPkw5Y1PIbRyPJWE5W\r\n"
+"2EtxHTPDRQ9JXTlEZXniO5fgAcj5qQ0dPonRNCGdnuyZ3XpD/QZGdkeNFiMajOah\r\n"
+"1OPVQz3/GL+BFtKdiyfd6tQFfYo0ASiJvbsRq3VkEEU74KxH1jdnhjgsKlaeLrmP\r\n"
+"3YgasSvP8UKUXtR9DOpX7SsQNP93GEuW24JI7U+yCm+1kgQXomIJCaq4aWKZaeEE\r\n"
+"F64XwiaV7zuGB5wuBNT2M95OgG7xNzM0Kxd15jcotbHCc5ocCmK8VfPI9tFbRojN\r\n"
+"0UJLfRGkoBeXjzff+Q==\r\n"
+"-----END CERTIFICATE-----\r\n";
+
+static const char mqtt_cli_key_rsa[] =
+"-----BEGIN RSA PRIVATE KEY-----\r\n"
+"MIIEowIBAAKCAQEArS+bBFYOuuNggb3P6pZdq0NBydFWJ+0a1ddvEtPmvG/Uzsv8\r\n"
+"pDJ+XueqxYfd9N+72lMgaWr9VzysUqdKFPB56nJV5e67uCvoJo45gW30TtLO9jAj\r\n"
+"8RyOZS7kDsrpUApYQtKVbVpqHX+SVHbHbjmch7mu0iFh2diDU1IB2ZAsBMjWz/qP\r\n"
+"F5sdhqErVOK0WIBmYJ72HaeMuU7vuh5rkm/W68cST+T0CzpmJABOdcpuDUvW1utf\r\n"
+"Ypfa+hBdi4d2guiKXS2FED+Ab0ifIX411FZcRngPhxxOgChfDuk9fnPobOi8QSLc\r\n"
+"Adik9zwVD8scHR/JZ05hDukM/KEL61aXBopJPwIDAQABAoIBAHs1AvNyxcfvOxkS\r\n"
+"EHizwK+2iXcqlkCRTiYTvdGHLv+gD6WPOY0W3xBlf/hHUICFKv+HY+ebVeBaKb4j\r\n"
+"hXCgJBvGe5W44ZOEqQPE6uRJdSUelF5QoUFHL4aMdXKQqKtosKHZbrT9PcD+oPu2\r\n"
+"BOtF0TY9w0F6vkJc5hDAptBA4RAFJX6EZ58BUt3i5iIWcBtqKzwBGdCkSAj001YO\r\n"
+"sG/1NT3o3Hha9Vpy05uc2GDci+CvTDhUx8SCb8EwqrZUZ5zj+1OHMbt4MVjzQmd/\r\n"
+"wZyc66DWhgiPk8MNZqlMXlwxwHkHzvrD2jSxAhEhHgatwECoLOjtkRfEsutl02QX\r\n"
+"TbR3qgECgYEA4ZhSloQBjcMDreNHW9DFP2JdF5qYuoz/6h3AkRwSBJ8OUaa2mpE/\r\n"
+"4vAhwxjNOOMQeoA0TWIPAninbFlKsTNdK+zPOClbA1ASpaIRrmgDzWWGG6BBoiWw\r\n"
+"ThQre9asod6v1+ckt/LE+xHZ9DTcnorh6X/ZodyCRLw+GTl+moftpPkCgYEAxIcF\r\n"
+"D2Y4H6tsn1PBjJ25tc5l8b3t1DV2Zl0aK/8IZqoH2ZqlDMCRA2MLEDUqSySix3nZ\r\n"
+"rvExO+8L7f7C2AQanChQ6wU8GCyJ/IN0CMLG1B5A+0lOIXIBw7iSfclszn2pH1+w\r\n"
+"A2tCc5eHeFAPqRENqEm0YmVpW+4Fevx1fqBRRfcCgYBKUJhcNu4gGe7bWHSIXXSs\r\n"
+"1aVfAjFvusUPBXALHVkeJptb8HRU5KZMBtjIYSIxrDMgd51DJJtXMBHPEncVepsl\r\n"
+"viPhF1aA9968q2/xqRgfkGMmNJuKY6n5fpF4gRZrWGVK1Tz2T8XuA0puNP+8Rnn3\r\n"
+"JoO122Maa3x1aMg49bAmWQKBgE4igFiHA3lT5nPSEPmfG960mMNsB8p/FvvLuEQV\r\n"
+"uXlX0JcrbMONLBp0nklrWc1WW4GDaJCtRC3X9J5C06SevRWo0cMe6a2Sx6mledSh\r\n"
+"2/sprBw8INwbP6hZEaUBGElgnITkvk4druXWMP4clp1ZMlzeMOGOAD2UfIlRJkWZ\r\n"
+"57YxAoGBANF5AVy5jXXqhpW9ctbq2XgACstEFeTZqdy0z1PXGeh9hnrtPrmfHmo4\r\n"
+"Hm51AqR5bGWM2WyiN939LwTROrjTZnlPhsn12yVdF6jMqFhO/nxumdTd/dj2+/FI\r\n"
+"42U5O0gyX5J87p5auPkx+dzd4a7eSinKosDsGWiIwh+/N/c7cHZ6\r\n"
+"-----END RSA PRIVATE KEY-----\r\n";
+
 /****************************************************************************
  * Static Functions
  ****************************************************************************/

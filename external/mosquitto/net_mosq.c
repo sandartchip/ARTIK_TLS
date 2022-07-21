@@ -116,6 +116,8 @@ void _mosquitto_net_init(void)
 #endif
 
 #ifdef WITH_TLS
+//#ifdef WITH_MBEDTLS
+
 	SSL_load_error_strings();
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
@@ -467,8 +469,11 @@ int mosquitto__socket_connect_tls(struct mosquitto *mosq)
 	int r;
 	_mosquitto_log_printf(mosq, MOSQ_LOG_DEBUG, "Handshake Start.");
 	/* Handshake */
+	printf("handshake!!!!!!!!!!!!!!!\n");
 	while ((r = mbedtls_ssl_handshake(mosq->ssl_ctx)) != 0) {
+	printf("handshake and sssl!!!!!!!!!!!!!!!\n");
 		if (r != MBEDTLS_ERR_SSL_WANT_READ && r != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			printf("handshake ERRRRRRRRRRRRRRRR!!!!!!!!!!!!!!!");
 			_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: handshake fail -%x", -r);
 			COMPAT_CLOSE(mosq->sock);
 			mosq->sock = INVALID_SOCKET;
@@ -486,11 +491,13 @@ int mosquitto__socket_connect_tls(struct mosquitto *mosq)
  */
 int _mosquitto_socket_connect(struct mosquitto *mosq, const char *host, uint16_t port, const char *bind_address, bool blocking)
 {
+	printf("socket connect hi\n");
 	mosq_sock_t sock = INVALID_SOCKET;
 	int rc;
 #ifdef WITH_TLS
 	int ret;
 	BIO *bio;
+	printf("with tls\n");
 #endif
 
 	if (!mosq || !host || !port) {
@@ -514,14 +521,16 @@ int _mosquitto_socket_connect(struct mosquitto *mosq, const char *host, uint16_t
 		}
 
 		mbedtls_ssl_init(mosq->ssl_ctx);
-
+		printf("TLS INIT!!!!!!!!!!\n");
 		if ((ret = mbedtls_ssl_setup(mosq->ssl_ctx, mosq->ssl)) != 0) {
+			printf("mbedtls ssl setup~~~");
 			_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: mbedtls_ssl_setup fail");
 			COMPAT_CLOSE(sock);
 			return MOSQ_ERR_TLS;
 		}
 
 		if (mosq->tls_hostname != NULL) {
+			printf("mbedtls ssl setup~~~hostname not null\n");
 			if ((ret = mbedtls_ssl_set_hostname(mosq->ssl_ctx, mosq->tls_hostname)) != 0) {
 				_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: mbedtls_ssl_set_hostname fail");
 				COMPAT_CLOSE(sock);
@@ -530,30 +539,42 @@ int _mosquitto_socket_connect(struct mosquitto *mosq, const char *host, uint16_t
 		}
 
 		mosq->net = malloc(sizeof(mbedtls_net_context));
+		printf("mosqt net~~~~~~`~\n");
 
 		if (mosq->net == NULL) {
+			printf("mosqt net is NULL`~\n");
 			COMPAT_CLOSE(sock);
 			return MOSQ_ERR_TLS;
 		}
 		((mbedtls_net_context *)mosq->net)->fd = (int)sock;
 		mbedtls_ssl_set_bio(mosq->ssl_ctx, mosq->net, mbedtls_net_send, mbedtls_net_recv, NULL);
+		printf("ssl set bio~\n");
 
 		if (mosquitto__socket_connect_tls(mosq)) {
+			printf("mosquitto socket cocnnect tls err`~\n");
 			return MOSQ_ERR_TLS;
 		}
 	}
 #endif
 
-#ifdef WITH_TLS
+
+#ifdef WITH_TLS 
+//#ifdef WITH_MBEDTLS
+
+	printf("ifdef with TLS~~~~~~~~~~~~~\n");
 	if (mosq->tls_cafile || mosq->tls_capath || mosq->tls_psk) {
+	printf("o\n");
 #if OPENSSL_VERSION_NUMBER >= 0x10001000L
 		if (!mosq->tls_version || !strcmp(mosq->tls_version, "tlsv1.2")) {
+			printf("p\n");
 			mosq->ssl_ctx = SSL_CTX_new(TLSv1_2_client_method());
+			printf("q\n");
 		} else if (!strcmp(mosq->tls_version, "tlsv1.1")) {
 			mosq->ssl_ctx = SSL_CTX_new(TLSv1_1_client_method());
 		} else if (!strcmp(mosq->tls_version, "tlsv1")) {
 			mosq->ssl_ctx = SSL_CTX_new(TLSv1_client_method());
 		} else {
+			printf("r\n");
 			_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: Protocol %s not supported.", mosq->tls_version);
 			COMPAT_CLOSE(sock);
 			return MOSQ_ERR_INVAL;
@@ -582,6 +603,7 @@ int _mosquitto_socket_connect(struct mosquitto *mosq, const char *host, uint16_t
 #endif
 
 		if (mosq->tls_ciphers) {
+			printf("s\n");
 			ret = SSL_CTX_set_cipher_list(mosq->ssl_ctx, mosq->tls_ciphers);
 			if (ret == 0) {
 				_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: Unable to set TLS ciphers. Check cipher list \"%s\".", mosq->tls_ciphers);
@@ -590,8 +612,10 @@ int _mosquitto_socket_connect(struct mosquitto *mosq, const char *host, uint16_t
 			}
 		}
 		if (mosq->tls_cafile || mosq->tls_capath) {
+			printf("t\n");
 			ret = SSL_CTX_load_verify_locations(mosq->ssl_ctx, mosq->tls_cafile, mosq->tls_capath);
 			if (ret == 0) {
+			printf("u\n");
 #ifdef WITH_BROKER
 				if (mosq->tls_cafile && mosq->tls_capath) {
 					_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "Error: Unable to load CA certificates, check bridge_cafile \"%s\" and bridge_capath \"%s\".", mosq->tls_cafile, mosq->tls_capath);
@@ -613,8 +637,12 @@ int _mosquitto_socket_connect(struct mosquitto *mosq, const char *host, uint16_t
 				return MOSQ_ERR_TLS;
 			}
 			if (mosq->tls_cert_reqs == 0) {
+				printf("SSL_CTX_set_verify(mosq->ssl_ctx, SSL_VERIFY_NONE, NULL)\n");
+				fflush(stdout);
 				SSL_CTX_set_verify(mosq->ssl_ctx, SSL_VERIFY_NONE, NULL);
 			} else {
+				printf("server certificate verify_SSL_VERIFY_PEER\n");
+				fflush(stdout);
 				SSL_CTX_set_verify(mosq->ssl_ctx, SSL_VERIFY_PEER, _mosquitto_server_certificate_verify);
 			}
 
@@ -826,21 +854,28 @@ ssize_t _mosquitto_net_read(struct mosquitto *mosq, void *buf, size_t count)
 #endif
 #ifdef WITH_MBEDTLS
 		int ret;
+		printf("m1\n");
 		if ((mosq->mbedtls_state == mosq_mbedtls_state_enabled) && mosq->ssl_ctx) {
 			ret = mbedtls_ssl_read(mosq->ssl_ctx, buf, count);
+			printf("m2\n");
 			if (ret < 0) {
+			printf("m3\n");
 				if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
 					ret = -1;
+					printf("m4\n");
 					errno = EAGAIN;
 				} else if (ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
 					ret = -1;
 					mosq->want_write = true;
 					errno = EAGAIN;
+					printf("m5\n");
 				} else {
 					_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "mbedtls Read Error %d", ret);
+					printf("m6\n");
 				}
 			} else if (ret == 0) {
 				_mosquitto_log_printf(mosq, MOSQ_LOG_INFO, "finish Read");
+				printf("m7\n");
 			}
 			return (ssize_t)ret;
 		} else {
@@ -849,8 +884,10 @@ ssize_t _mosquitto_net_read(struct mosquitto *mosq, void *buf, size_t count)
 
 #ifndef WIN32
 			return read(mosq->sock, buf, count);
+			printf("m8\n");
 #else
 			return recv(mosq->sock, buf, count, 0);
+			printf("m9\n");
 #endif
 
 #ifdef WITH_MBEDTLS
@@ -900,9 +937,12 @@ ssize_t _mosquitto_net_write(struct mosquitto *mosq, void *buf, size_t count)
 #endif
 #ifdef WITH_MBEDTLS
 		int ret;
+		printf("mbed_mbed2\n");
 		if ((mosq->mbedtls_state == mosq_mbedtls_state_enabled) && mosq->ssl_ctx) {
+			printf("mbed_mbed3\n");
 			ret = mbedtls_ssl_write(mosq->ssl_ctx, buf, count);
 			if (ret < 0) {
+				printf("mbed_mbed4\n");
 				_mosquitto_log_printf(mosq, MOSQ_LOG_ERR, "mbedtls Write Error");
 			}
 			return (ssize_t)ret;
@@ -1068,7 +1108,7 @@ int _mosquitto_packet_read(struct mosquitto *mosq)
 	uint8_t byte;
 	ssize_t read_length;
 	int rc = 0;
-
+	printf("with broker~~~~~~~~~~~~\n");
 	if (!mosq) {
 		return MOSQ_ERR_INVAL;
 	}
